@@ -87,3 +87,19 @@ CREATE TABLE tb_ingredientes_de_produtos (
     FOREIGN KEY (codigo_do_produto) REFERENCES tb_produto(codigo_do_produto),
     FOREIGN KEY (codigo_de_ingrediente) REFERENCES tb_ingrediente(codigo_de_ingrediente)
 );
+
+#Modificado Usuário
+CREATE SCHEMA IF NOT EXISTS sch_privated_users;
+
+CREATE TABLE IF NOT EXISTS sch_privated_users.tb_usuarios (
+	pk_id_usuario SERIAL PRIMARY KEY,
+	id_funcionario INT NOT NULL,
+	usuario VARCHAR(25) NOT NULL,
+	enc_ps VARCHAR(100) NOT NULL,
+	
+	FOREIGN KEY(id_funcionario) REFERENCES public.tb_funcionario(id_funcionario) ON UPDATE CASCADE ON DELETE CASCADE
+	
+)
+
+
+SELECT * FROM public.tb_funcionario;
