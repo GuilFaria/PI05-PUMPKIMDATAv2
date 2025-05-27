@@ -8,7 +8,7 @@ CREATE TABLE tb_funcionario (
     numero_telefone CHAR(11) NOT NULL,
     endereco VARCHAR(150) NOT NULL,
     sexo CHAR(1) NOT NULL,
-    cargo VARCHAR(20) NOT NULL
+    cargo VARCHAR(60) NOT NULL
 
 );
  
@@ -88,10 +88,11 @@ CREATE TABLE tb_ingredientes_de_produtos (
     FOREIGN KEY (codigo_de_ingrediente) REFERENCES tb_ingrediente(codigo_de_ingrediente)
 );
 
-#Modificado Usuário
+--Modificado Usuário
 CREATE SCHEMA IF NOT EXISTS sch_privated_users;
 
-CREATE TABLE IF NOT EXISTS sch_privated_users.tb_usuarios (
+DROP TABLE IF EXISTS sch_privated_users.tb_usuarios;
+CREATE TABLE sch_privated_users.tb_usuarios (
 	pk_id_usuario SERIAL PRIMARY KEY,
 	id_funcionario INT NOT NULL,
 	usuario VARCHAR(25) NOT NULL,
@@ -100,6 +101,3 @@ CREATE TABLE IF NOT EXISTS sch_privated_users.tb_usuarios (
 	FOREIGN KEY(id_funcionario) REFERENCES public.tb_funcionario(id_funcionario) ON UPDATE CASCADE ON DELETE CASCADE
 	
 )
-
-
-SELECT * FROM public.tb_funcionario;

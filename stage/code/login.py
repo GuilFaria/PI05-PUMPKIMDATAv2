@@ -8,10 +8,8 @@ from streamlit_router import StreamlitRouter
 
 #------------------------Pre-Works---------------------------#
 
-
-# Usuário e senha teste: guilhe@faria.com, gui123
-
-
+# Usuário e senha teste: guilhe@faria.com, senha: gui, 
+# senha hash: 35f413a6cfe5475b20aa870e4e90b4e6c2f5b25abf131cb954fc852a444883a9
  
 load_dotenv()
 
@@ -23,6 +21,30 @@ database = os.getenv("DATABASE")
 
 
 cache = st.session_state
+
+def validar_cpf_extenso(cpf: str) -> bool:
+    # Verifica se tem 11 dígitos numéricos
+    if not cpf.isdigit() or len(cpf) != 11:
+        return False
+
+    # Verifica se todos os dígitos são iguais (caso inválido como 11111111111)
+    if cpf == cpf[0] * 11:
+        return False
+
+    # Cálculo do primeiro dígito verificador
+    soma1 = sum(int(cpf[i]) * (10 - i) for i in range(9))
+    digito1 = (soma1 * 10) % 11
+    if digito1 == 10:
+        digito1 = 0
+
+    # Cálculo do segundo dígito verificador
+    soma2 = sum(int(cpf[i]) * (11 - i) for i in range(10))
+    digito2 = (soma2 * 10) % 11
+    if digito2 == 10:
+        digito2 = 0
+
+    # Verifica se os dígitos batem com os dois últimos do CPF
+    return cpf[-2:] == f"{digito1}{digito2}"
 
 
 def encriptografa_sha3_256(content: list | io.BytesIO | str= str) -> list[str] | str: 
@@ -46,6 +68,12 @@ def encriptografa_sha3_256(content: list | io.BytesIO | str= str) -> list[str] |
             hashs_list.append(hashed_text)
         return hashs_list        
 
+def valida_valores_dicionario(userDict: dict):
+    userDict['senha'] = encriptografa_sha3_256(userDict["senha"]) 
+    userDict["sexo"] = userDict["sexo"][0].upper()
+    
+    return userDict
+            
 
 
 #---------------TELA DE CADASTRO ALUNO---------------#
@@ -57,7 +85,7 @@ def tela_cadastro_aluno():
 
 def tela_login(router: StreamlitRouter):
     
-    st.header("SIPA - Brasil")
+    st.header("Pumpkim Intelligence")
     with st.form(key="login e senha", enter_to_submit=False):
 
         login = st.text_input("Login de Usuário", placeholder="Digite seu usuário aqui")
@@ -70,7 +98,7 @@ def tela_login(router: StreamlitRouter):
         
         with col2:
             button_cad = st.form_submit_button(label="Cadastrar")
-        print(router.endpoint_session_name)
+        
         if enter_button:
             user = {}
             
@@ -87,8 +115,8 @@ def tela_login(router: StreamlitRouter):
                 
                 cache["login"] = user["login"]
                 cache["password"] = user["senha"]
-                print(router.urls.script_name)
-                return router.redirect(*router.build("teste_main"))
+
+                router.redirect(*router.build("fn_create_values"))
             
             else:
                 st.error("Login ou senha inválidos")
@@ -98,7 +126,7 @@ def tela_login(router: StreamlitRouter):
 
 
 
-@st.dialog("Cadastro | SIPA")
+@st.dialog("Cadastro | Pumpkim Saudável")
 def popup_cadastrar():
         
         st_cad_errors = 0
@@ -120,18 +148,38 @@ def popup_cadastrar():
                 st.error("Coloque um e-mail válido.")
                 st_cad_errors += 1
 
+        user_cpf = st.text_input("CPF", placeholder= "Digite seu CPF aqui. (Em formato extenso)")
+        if user_cpf:
+            if not validar_cpf_extenso(user_cpf):
+                st.error("Coloque um CPF válido.")
+                st_cad_errors += 1
+            
+        user_date_burned = st.date_input('Data de Nascimento', value= None, format= "DD/MM/YYYY")
+        user_cell_number = st.text_input("Número de Telefone", placeholder= "Ex: 1194071231...", autocomplete='tel')
+        user_endereco = st.text_input("Endereço", placeholder="Ex: Rua Alfredo Neres...", autocomplete= 'street-address')
+        user_sex = st.selectbox('Sexo', options= ["Masculino", "Feminino"], )
+        user_cargo = st.text_input('Que cargo você ocupa?', placeholder= "Ex: Analista de Estoque...")
+
         user_password: str = st.text_input("Senha",type="password", placeholder="Digite sua senha aqui")
         user_password_conf: str = st.text_input("Confirmar senha", type="password",placeholder="Confirme sua senha")
         user_cad_button = st.button(label="Cadastrar", key="button_cadastrar_finish")
 
-        if user_cad_button:
+        if user_cad_button and not st_cad_errors:
             if user_password == user_password_conf:
-                user = {}
-                user['nome'] = user_cad_name
-                user['email'] = user_cad_email
-                user['senha'] = encriptografa_sha3_256(user_password)
+                dict_funcionario = {}
 
-                cadastro_usuario = cad_user(user)
+                dict_funcionario['nome'] = user_cad_name
+                dict_funcionario['email'] = user_cad_email
+                dict_funcionario['cpf'] = user_cpf
+                dict_funcionario['data_nascimento'] = user_date_burned
+                dict_funcionario['numero_telefone'] = user_cell_number
+                dict_funcionario['endereco'] = user_endereco
+                dict_funcionario['sexo'] = user_sex
+                dict_funcionario['cargo'] = user_cargo
+                dict_funcionario['senha'] = user_password
+
+                dict_funcionario = valida_valores_dicionario(dict_funcionario)
+                cadastro_usuario = cad_user(dict_funcionario)
                 
                 if cadastro_usuario:
                     st.success("Cadastro realizado com sucesso")
@@ -165,26 +213,54 @@ def cad_user(userDict: dict):
 
         cur = conn.cursor()
         
-        cur.execute("SELECT id_user FROM usuario WHERE user_login = %s", (userDict['email'],))
+        cur.execute("SELECT pk_id_usuario FROM sch_privated_users.tb_usuarios WHERE usuario = %s", (userDict['email'],))
         user_auth_exists = cur.fetchone()
 
         if user_auth_exists:
             conn.close()
             return False
-    
-        cur.execute('''INSERT INTO usuario (user_name, user_login, user_password) VALUES (%s, %s, %s)''',
-                    (userDict["nome"], userDict["email"], userDict["senha"])
-                    )
-        
+    # Inserção na tabela 'usuario' (principal)
+        cur.execute('''
+            INSERT INTO public.tb_funcionario (nome, cpf, data_nascimento, numero_telefone, endereco, sexo, cargo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id_funcionario;
+        ''', (
+            userDict["nome"],
+            userDict["cpf"],
+            userDict["data_nascimento"],
+            userDict["numero_telefone"],
+            userDict["endereco"],
+            userDict["sexo"],
+            userDict["cargo"]
+        ))
+
+        usuario_id = cur.fetchone()[0]
+
+        # Inserção na tabela privada
+        cur.execute('''
+            INSERT INTO sch_privated_users.tb_usuarios (usuario, enc_ps, id_funcionario)
+            VALUES (%s, %s, %s);
+        ''', (
+            userDict["email"],
+            userDict["senha"],
+            usuario_id
+        ))
+
+        # Commit se tudo deu certo
         conn.commit()
-        conn.close()
+        flag_create_user = True
 
     except Exception as e:
-        st.write(e)
-        conn.close()
-        return False
+        # Rollback se qualquer erro ocorrer
+        conn.rollback()
+        print("Erro ao criar usuário:", e)
+        flag_create_user = False 
 
-    return True
+    finally:
+        # Sempre fechar a conexão
+        cur.close()
+        conn.close()
+        return flag_create_user
     
     
 
@@ -207,10 +283,10 @@ def user_auth(login, password_enc):
     
     cur = conn.cursor()
     
-    cur.execute('''SELECT us.id_user FROM usuario us 
+    cur.execute('''SELECT us.pk_id_usuario FROM sch_privated_users.tb_usuarios us 
                 WHERE 1=1
-                AND us.user_login = %s 
-                AND us.user_password = %s''', 
+                AND us.usuario = %s 
+                AND us.enc_ps = %s''', 
                 (login, password_enc)
                 )
     
@@ -221,4 +297,3 @@ def user_auth(login, password_enc):
     
     else:
         return False
-   
