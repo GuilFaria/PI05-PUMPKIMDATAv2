@@ -7,7 +7,7 @@ from processes.create_qrcode import fn_create_values
 
 cache = st.session_state
 
-st.set_page_config(page_title= 'Pumpkim Intelligence', page_icon= ':smile:')
+st.set_page_config(page_title= 'Pumpkim Intelligence', page_icon= ':material/nutrition:', layout= "wide")
 
 router = StreamlitRouter()
 
