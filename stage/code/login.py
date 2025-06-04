@@ -154,7 +154,7 @@ def popup_cadastrar():
                 st.error("Coloque um CPF válido.")
                 st_cad_errors += 1
             
-        user_date_burned = st.date_input('Data de Nascimento', value= None, format= "DD/MM/YYYY")
+        user_date_burned = st.date_input('Data de Nascimento', min_value= "1900-01-01", value= "today", format= "DD/MM/YYYY")
         user_cell_number = st.text_input("Número de Telefone", placeholder= "Ex: 1194071231...", autocomplete='tel')
         user_endereco = st.text_input("Endereço", placeholder="Ex: Rua Alfredo Neres...", autocomplete= 'street-address')
         user_sex = st.selectbox('Sexo', options= ["Masculino", "Feminino"], )
