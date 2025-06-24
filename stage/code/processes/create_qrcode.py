@@ -4,6 +4,17 @@ import io
 
 import streamlit as st
 import datetime as dt
+import psycopg2
+import os
+from dotenv import load_dotenv, dotenv_values
+
+load_dotenv()
+
+host = os.getenv("HOST_DB")
+port = os.getenv("PORT_VALUE")
+username = os.getenv("USER_APP")
+pw_db = os.getenv("PASSWORD")
+database = os.getenv("DATABASE")
 
 cache = st.session_state
 
@@ -79,13 +90,45 @@ def cria_qrcode(json_qrcode):
     with colunas[1]:
         st.image(fr'{path}\temp{date_atual}.png')
 
+def fn_cria_lista_ingredientes():
+    # Criação da lista de ingredientes para o QRCode
+    lista_ingredientes = []
+    
+    
+    global host
+    global username
+    global port
+    global pw_db
+    global database
+    
+    
+    conn = psycopg2.connect(
+        host=host,
+        database=database,
+        user=username,
+        password=pw_db
+        )
+    
+    cur = conn.cursor()
+    
+    cur.execute('''SELECT descricao FROM public.ingredientes''')
+    
+    fetched = cur.fetchone()
+    while fetched is not None:
+        lista_ingredientes.append(fetched[0])
+        fetched = cur.fetchone()
+    
+    return lista_ingredientes
+
+
 def fn_create_values():
 
     
     st.image(r'C:\Users\guilh\Desktop\Projetos\Home\PI05 - PumpkimDataV2\stage\images\stage_images\pumpkim_logo.png')
     st.subheader('Pumpkim Intelligence | Controle de Estoque')
     
-    list_ingredients = ['Cenora', 'Tomate', 'Pepino', 'Alface', 'Brocolis', 'Beterraba', 'Açafrão', 'Escarrola']
+    list_ingredients = fn_cria_lista_ingredientes()
+    # list_ingredients = ['Cenora', 'Tomate', 'Pepino', 'Alface', 'Brocolis', 'Beterraba', 'Açafrão', 'Escarrola']
 
     
     list_ingredients_selected = st.multiselect('Selecione os ingredientes', list_ingredients)

@@ -53,19 +53,23 @@ def encriptografa_sha3_256(content: list | io.BytesIO | str= str) -> list[str] |
     if isinstance(content, str):
         hash_text = content.encode()
         hash = hashlib.sha3_256(hash_text)
+
         return hash.hexdigest()
         
     elif isinstance(content, io.BytesIO):
         hash = hashlib.sha3_256(content)
+
         return hashs_list.hexdigest()
         
     elif isinstance(content, list):
         hashs_list = []
+
         for string in content:
             string = str(string)
             encoded_text = string.encode()
             hashed_text = hashlib.sha3_256(encoded_text).hexdigest()
             hashs_list.append(hashed_text)
+
         return hashs_list        
 
 def valida_valores_dicionario(userDict: dict):
@@ -134,6 +138,7 @@ def popup_cadastrar():
         st.write("Realize o seu sign-up aqui.")
         
         user_cad_name: str = st.text_input("Nome", placeholder="Digite seu nome aqui", autocomplete='name')
+
         if user_cad_name:
             if len(user_cad_name.split(' ')) <= 1:
                 st.error("Coloque seu nome completo.")
@@ -160,8 +165,9 @@ def popup_cadastrar():
         user_sex = st.selectbox('Sexo', options= ["Masculino", "Feminino"], )
         user_cargo = st.text_input('Que cargo você ocupa?', placeholder= "Ex: Analista de Estoque...")
 
-        user_password: str = st.text_input("Senha",type="password", placeholder="Digite sua senha aqui")
-        user_password_conf: str = st.text_input("Confirmar senha", type="password",placeholder="Confirme sua senha")
+        user_login = st.text_input('Agora, escreva como ficará seu **login**', placeholder= "Ex: ciclano2")
+        user_password: str = st.text_input("E sua **senha**?",type="password", placeholder="Digite sua senha aqui")
+        user_password_conf: str = st.text_input("Confirme a senha", type="password",placeholder="Confirme sua senha")
         user_cad_button = st.button(label="Cadastrar", key="button_cadastrar_finish")
 
         if user_cad_button and not st_cad_errors:
@@ -176,7 +182,9 @@ def popup_cadastrar():
                 dict_funcionario['endereco'] = user_endereco
                 dict_funcionario['sexo'] = user_sex
                 dict_funcionario['cargo'] = user_cargo
+                dict_funcionario['login'] = user_login
                 dict_funcionario['senha'] = user_password
+                
 
                 dict_funcionario = valida_valores_dicionario(dict_funcionario)
                 cadastro_usuario = cad_user(dict_funcionario)
@@ -213,12 +221,13 @@ def cad_user(userDict: dict):
 
         cur = conn.cursor()
         
-        cur.execute("SELECT pk_id_usuario FROM sch_privated_users.tb_usuarios WHERE usuario = %s", (userDict['email'],))
+        cur.execute("SELECT id_login FROM public.tb_login WHERE login = %s", (userDict['email'],))
         user_auth_exists = cur.fetchone()
 
         if user_auth_exists:
             conn.close()
             return False
+        
     # Inserção na tabela 'usuario' (principal)
         cur.execute('''
             INSERT INTO public.tb_funcionario (nome, cpf, data_nascimento, numero_telefone, endereco, sexo, cargo)
@@ -238,12 +247,12 @@ def cad_user(userDict: dict):
 
         # Inserção na tabela privada
         cur.execute('''
-            INSERT INTO sch_privated_users.tb_usuarios (usuario, enc_ps, id_funcionario)
+            INSERT INTO public.tb_login (id_funcionario, login, senha)
             VALUES (%s, %s, %s);
         ''', (
-            userDict["email"],
+            usuario_id,
+            userDict["login"],
             userDict["senha"],
-            usuario_id
         ))
 
         # Commit se tudo deu certo
@@ -283,10 +292,10 @@ def user_auth(login, password_enc):
     
     cur = conn.cursor()
     
-    cur.execute('''SELECT us.pk_id_usuario FROM sch_privated_users.tb_usuarios us 
+    cur.execute('''SELECT us.id_funcionario FROM public.tb_login us 
                 WHERE 1=1
-                AND us.usuario = %s 
-                AND us.enc_ps = %s''', 
+                AND us.login = %s 
+                AND us.senha = %s''', 
                 (login, password_enc)
                 )
     
