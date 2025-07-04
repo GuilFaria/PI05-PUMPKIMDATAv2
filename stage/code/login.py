@@ -292,7 +292,8 @@ def user_auth(login, password_enc):
     
     cur = conn.cursor()
     
-    cur.execute('''SELECT us.id_funcionario FROM public.tb_login us 
+    cur.execute('''SELECT fu.id_funcionario, fu.nome FROM public.tb_login us
+                JOIN public.tb_funcionario fu ON (us.id_funcionario = fu.id_funcionario)
                 WHERE 1=1
                 AND us.login = %s 
                 AND us.senha = %s''', 
@@ -302,6 +303,9 @@ def user_auth(login, password_enc):
     fetched = cur.fetchone()
 
     if fetched:
+        cache["id_funcionario"] = fetched[0]
+        cache['nome_funcionario'] = fetched[1]
+
         return True
     
     else:

@@ -1,6 +1,7 @@
 import segno
 import base64
 import io
+import time
 
 import streamlit as st
 import datetime as dt
@@ -62,14 +63,57 @@ def codifica_base64(content: list | io.BytesIO | str  = str) -> list[str] | str:
 
 
 
-def cria_json_qrcode(dict_ingredientes):
+def aplica_marmita_entrada(str_id_marmita: str):
     # Criação do JSON para o QRCode
+    
+    try:
+        int_id_marmita = int(str_id_marmita)
+    except Exception as e:
+        st.error(f'Erro ao converter id_marmita para int: {e}')
+        return
     
     json_qrcode = {}
 
-    json_qrcode["email"] = cache["login"]
-    json_qrcode["data_criacao"] = dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    json_qrcode["ingredientes"] = dict_ingredientes
+     
+    global host
+    global username
+    global port
+    global pw_db
+    global database
+    
+    
+    conn = psycopg2.connect(
+        host=host,
+        database=database,
+        user=username,
+        password=pw_db
+        )
+    
+    cur = conn.cursor()
+    
+    cur.execute('''SELECT id FROM public.movimentacao
+                ORDER BY id DESC
+                LIMIT 1''')
+    
+    fetched = cur.fetchone()
+
+    while fetched is not None:
+        new_id_mov = int(fetched[0]) + 1
+        fetched = cur.fetchone()
+    
+
+    cur.execute('''INSERT INTO public.movimentacao(id, tipo_movimento, quantidade, id_funcionario, id_marmita)
+                VALUES (%s, 'entrada', 1, %s, %s) ''',
+                (new_id_mov, cache["id_funcionario"], int_id_marmita))
+    
+    conn.commit()
+    
+    
+    
+
+    json_qrcode["id"] = new_id_mov
+    # json_qrcode["data_criacao"] = dt.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    # json_qrcode["ingredientes"] = str_marmita_cod
 
     return json_qrcode
 
@@ -80,19 +124,28 @@ def cria_qrcode(json_qrcode):
     date_format = '%d_%m_%Y_%H_%M_%S'
     date_atual = dt.datetime.now().strftime(date_format)
     
-    video = segno.make(codifica_base64(str(json_qrcode)), micro= False)
+    video = segno.make(str(json_qrcode), micro= False)
 
-    video.save(fr'{path}\temp{date_atual}.png', dark="yellow", light="#323524", scale=15)
+
+    qr_code_temp = fr'{path}\temp{date_atual}.png'
+
+
+
+    video.save(qr_code_temp, dark="yellow", light="#323524", scale=15)
 
     st.subheader('', divider= 'orange')
     st.write("_Certifique-se de fazer o Download e imprima-o no produto/marmita cadastrada._")
     colunas = st.columns(3)
     with colunas[1]:
-        st.image(fr'{path}\temp{date_atual}.png')
+        with open(qr_code_temp, 'rb') as f:
+            donwload_archives = io.BytesIO(f.read())
+            
+        st.image(donwload_archives)
+        st.download_button("Download QRCode", donwload_archives, file_name="qrcode.png", mime="image/png")
 
-def fn_cria_lista_ingredientes():
+def fn_cria_lista_marmitas():
     # Criação da lista de ingredientes para o QRCode
-    lista_ingredientes = []
+    dict_marmitas = {}
     
     
     global host
@@ -111,42 +164,41 @@ def fn_cria_lista_ingredientes():
     
     cur = conn.cursor()
     
-    cur.execute('''SELECT descricao FROM public.ingredientes''')
+    cur.execute('''SELECT marmita_id, descricao FROM public.marmitas''')
     
     fetched = cur.fetchone()
+
     while fetched is not None:
-        lista_ingredientes.append(fetched[0])
+
+        dict_marmitas[fetched[1]] = fetched[0]
         fetched = cur.fetchone()
     
-    return lista_ingredientes
+    time.sleep(2.5)
+    return dict_marmitas
 
 
 def fn_create_values():
 
-    
+    nome_func = cache['nome_funcionario']
+    nome_func = nome_func.split(' ')[0].capitalize()
+
+
     st.image(r'C:\Users\guilh\Desktop\Projetos\Home\PI05 - PumpkimDataV2\stage\images\stage_images\pumpkim_logo.png')
-    st.subheader('Pumpkim Intelligence | Controle de Estoque')
+    st.subheader('Pumpkim Intelligence | Controle de Estoque', divider= 'grey')
+    st.write(f'_Olá, **{nome_func}**!_')
+
+    st.write('')
     
-    list_ingredients = fn_cria_lista_ingredientes()
-    # list_ingredients = ['Cenora', 'Tomate', 'Pepino', 'Alface', 'Brocolis', 'Beterraba', 'Açafrão', 'Escarrola']
-
+    dict_marmitas = fn_cria_lista_marmitas()
+    list_marmitas = list(dict_marmitas.keys())
     
-    list_ingredients_selected = st.multiselect('Selecione os ingredientes', list_ingredients)
+    str_marmita_seleted = st.selectbox('Selecione o tipo de marmita retirada.', list_marmitas)
     
-    dict_valores = {}
+    enviar = st.button('Enviar')
 
-    if len(list_ingredients_selected) >= 1:
-
-        for ingrediente in list_ingredients_selected:
-            st.divider()
-            peso = st.slider(f'Selecione a quantidade do **{ingrediente}** - (Em gramas):', min_value= 1, max_value= 1000, value= 100, step= 1, )
-            dict_valores[ingrediente] = peso
-
-        enviar = st.button('Criar QR Code')
-
-        if enviar:
-            
-            json_qrcode = cria_json_qrcode(dict_valores)
-            
-            cria_qrcode(json_qrcode)
-            
+    if enviar:
+        
+        id_marmita_selected = dict_marmitas.get(str_marmita_seleted)
+        json_qrcode = aplica_marmita_entrada(id_marmita_selected)
+        
+        cria_qrcode(json_qrcode)
